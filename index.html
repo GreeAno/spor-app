@@ -172,7 +172,7 @@
   }
 
   /* APP LAYOUT */
-  #app { display: none; min-height: 100vh; padding-bottom: 80px; }
+  #app { display: block; min-height: 100vh; padding-bottom: 80px; }
 
   /* TOP NAV */
   .top-nav {
@@ -505,7 +505,7 @@
   }
 </style>
 </head>
-<body>
+<body style="background:#0d0d0d;color:#f5f2eb;font-family:Onest,sans-serif;">
 
 <!-- LOADING -->
 <div id="loading">
@@ -688,8 +688,14 @@ function apiSignIn(email, password) {
   return fetch(SURL + '/auth/v1/token?grant_type=password', {method:'POST', headers:{'Content-Type':'application/json','apikey':SKEY}, body: JSON.stringify({email:email, password:password})}).then(function(r){ return r.json(); });
 }
 
-function showEl(id) { var e = document.getElementById(id); if(e) e.classList.remove('hidden'); }
-function hideEl(id) { var e = document.getElementById(id); if(e) e.classList.add('hidden'); }
+function showEl(id) {
+  var e = document.getElementById(id);
+  if (!e) return;
+  e.classList.remove('hidden');
+  if (e.style.display === 'none') e.style.display = '';
+  if (getComputedStyle(e).display === 'none') e.style.display = 'block';
+}
+function hideEl(id) { var e = document.getElementById(id); if(e) { e.classList.add('hidden'); e.style.display = ''; } }
 function toggleEl(id, v) { v ? showEl(id) : hideEl(id); }
 function getVal(id) { var e = document.getElementById(id); return e ? (e.value||'').trim() : ''; }
 
