@@ -859,10 +859,12 @@ function showApp() {
   app.style.display = 'block';
   app.style.minHeight = '100vh';
   app.style.paddingBottom = '80px';
-  showScreen('home');
+  var saved = localStorage.getItem('spor_screen') || 'home';
+  showScreen(saved);
 }
 
 function showScreen(name) {
+  if (name !== 'detail') localStorage.setItem('spor_screen', name);
   ['home','explore','create','detail','profile'].forEach(function(s){ hideEl('screen-'+s); });
   var sc = document.getElementById('screen-'+name);
   if (sc) { sc.style.display = 'block'; sc.classList.remove('hidden'); }
