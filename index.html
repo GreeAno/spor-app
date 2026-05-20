@@ -1044,9 +1044,9 @@ function createChallenge() {
   var btn = document.querySelector('#screen-create .btn-accent');
   btn.disabled = true; btn.textContent = '...';
 
-  dbInsert('challenges', {title: title, description: desc, duration_days: selectedDays, stake: stake, creator_id: currentUser.id}).then(function(result) {
+  dbUpsert('challenges', {title: title, description: desc, duration_days: selectedDays, stake: stake, creator_id: currentUser.id}).then(function(result) {
     var ch = Array.isArray(result) ? result[0] : result;
-    return dbInsert('participants', {challenge_id: ch.id, user_id: currentUser.id}).then(function() { return ch; });
+    return dbUpsert('participants', {challenge_id: ch.id, user_id: currentUser.id}).then(function() { return ch; });
   }).then(function(ch) {
     document.getElementById('c-title').value = '';
     document.getElementById('c-desc').value = '';
