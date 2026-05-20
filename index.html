@@ -935,11 +935,13 @@ function showDetail(id) {
   var colors = ['#e8ff47','#ff8c69','#69d5ff','#c469ff','#69ffb4'];
   var chData, partsData;
 
+  console.log('showDetail called, id:', id);
   Promise.all([
     dbGetOne('challenges', 'id=eq.' + id + '&select=*,profiles(name)'),
     dbGet('participants', 'challenge_id=eq.' + id + '&select=*,profiles(name,id)'),
     dbGet('checkins', 'challenge_id=eq.' + id + '&user_id=eq.' + currentUser.id + '&select=date')
   ]).then(function(results) {
+    console.log('results:', results[0], results[1], results[2]);
     var ch = results[0];
     var parts = results[1] || [];
     var myCheckins = results[2] || [];
