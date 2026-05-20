@@ -649,7 +649,12 @@ function getHeaders() {
 }
 
 function dbGet(table, filters) {
-  return fetch(SURL + '/rest/v1/' + table + '?' + (filters||''), {headers: getHeaders()}).then(function(r){ return r.json(); });
+  var url = SURL + '/rest/v1/' + table + '?' + (filters||'');
+  return fetch(url, {headers: getHeaders()}).then(function(r){ return r.json(); }).catch(function() {
+    return new Promise(function(resolve) { setTimeout(resolve, 1500); }).then(function() {
+      return fetch(url, {headers: getHeaders()}).then(function(r){ return r.json(); });
+    });
+  });
 }
 
 function dbGetOne(table, filters) {
