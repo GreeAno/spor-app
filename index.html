@@ -706,20 +706,26 @@ async function authSignIn(email, password) {
 }
 
 async function init() {
-  const params = new URLSearchParams(window.location.search);
-  joinChallengeId = params.get('join');
-  let session = null;
-  try { session = JSON.parse(localStorage.getItem('spor_session')); } catch(e) {}
-  hide('loading');
+  try {
+    const params = new URLSearchParams(window.location.search);
+    joinChallengeId = params.get('join');
+    let session = null;
+    try { session = JSON.parse(localStorage.getItem('spor_session')); } catch(e) {}
 
-  if (session && session.access_token) {
-    accessToken = session.access_token;
-    currentUser = session.user;
-    await loadProfile();
-    if (joinChallengeId) { await showJoinScreen(); return; }
-    showApp();
-  } else {
-    if (joinChallengeId) { await showJoinScreen(); return; }
+    if (session && session.access_token) {
+      accessToken = session.access_token;
+      currentUser = session.user;
+      try { await loadProfile(); } catch(e) {}
+      hide('loading');
+      if (joinChallengeId) { await showJoinScreen(); return; }
+      showApp();
+    } else {
+      hide('loading');
+      if (joinChallengeId) { await showJoinScreen(); return; }
+      show('auth-screen');
+    }
+  } catch(e) {
+    hide('loading');
     show('auth-screen');
   }
 }
