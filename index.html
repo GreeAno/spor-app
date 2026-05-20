@@ -846,11 +846,18 @@ function joinChallenge() {
   }).catch(function() { showToast('Ошибка — попробуй ещё раз'); });
 }
 
-function showApp() { showEl('app'); showScreen('home'); }
+function showApp() {
+  var app = document.getElementById('app');
+  app.style.display = 'block';
+  app.style.minHeight = '100vh';
+  app.style.paddingBottom = '80px';
+  showScreen('home');
+}
 
 function showScreen(name) {
   ['home','explore','create','detail','profile'].forEach(function(s){ hideEl('screen-'+s); });
-  showEl('screen-'+name);
+  var sc = document.getElementById('screen-'+name);
+  if (sc) { sc.style.display = 'block'; sc.classList.remove('hidden'); }
   document.querySelectorAll('.nav-item').forEach(function(el){ el.classList.remove('active'); });
   var nav = document.getElementById('nav-'+name);
   if (nav) nav.classList.add('active');
