@@ -1000,6 +1000,24 @@ function joinFromDetail(id) {
   }).then(function(){ showToast('🎉 Ты в игре!'); showDetail(id); }).catch(function(){});
 }
 
+function deleteChallenge(id) {
+  if (!confirm('Удалить этот челлендж? Это действие нельзя отменить.')) return;
+  var uid = currentUser.id;
+  // Delete in order: checkins → participants → challenge
+  fetch(SURL + '/rest/v1/checkins?challenge_id=eq.' + id, {method:'DELETE', headers: getHeaders()})
+  .then(function() {
+    return fetch(SURL + '/rest/v1/participants?challenge_id=eq.' + id, {method:'DELETE', headers: getHeaders()});
+  })
+  .then(function() {
+    return fetch(SURL + '/rest/v1/challenges?id=eq.' + id + '&creator_id=eq.' + uid, {method:'DELETE', headers: getHeaders()});
+  })
+  .then(function() {
+    showToast('🗑 Челлендж удалён');
+    showScreen('home');
+  })
+  .catch(function() { showToast('Ошибка при удалении'); });
+}
+
 function selectDays(n, btn) {
   selectedDays = n;
   document.querySelectorAll('.day-btn').forEach(function(b){ b.classList.remove('selected'); });
