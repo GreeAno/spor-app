@@ -556,7 +556,7 @@
 </div>
 
 <!-- MAIN APP -->
-<div id="app">
+<div id="app" style="display:none">
   <div class="top-nav">
     <div class="top-nav-logo">спор.</div>
     <div class="top-nav-user">
@@ -751,7 +751,7 @@ function init() {
     } else {
       hideEl('loading');
       if (joinChallengeId) { showJoinScreen(); return; }
-      showEl('auth-screen');
+      showAuthOnly();
     }
   } catch(e) {
     hideEl('loading');
@@ -825,7 +825,7 @@ function register() {
 function logout() {
   localStorage.removeItem('spor_session');
   accessToken = null; currentUser = null; currentProfile = null;
-  hideEl('app'); showEl('auth-screen');
+  hideEl('app'); showAuthOnly();
 }
 
 function showJoinScreen() {
@@ -861,6 +861,11 @@ function showApp() {
   app.style.paddingBottom = '80px';
   var saved = localStorage.getItem('spor_screen') || 'home';
   showScreen(saved);
+}
+
+function showAuthOnly() {
+  hideEl('app');
+  showEl('auth-screen');
 }
 
 function showScreen(name) {
