@@ -633,368 +633,403 @@
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-
 <script>
-const URL  = 'https://nyivjcppdbvtjwfmutao.supabase.co';
-const KEY  = 'sb_publishable_TpWFvJagIIjFGXozUq5uJA_AbQq9RZt';
+var SURL = 'https://nyivjcppdbvtjwfmutao.supabase.co';
+var SKEY = 'sb_publishable_TpWFvJagIIjFGXozUq5uJA_AbQq9RZt';
+var currentUser = null;
+var currentProfile = null;
+var selectedDays = 14;
+var joinChallengeId = null;
+var accessToken = null;
 
-let currentUser = null;
-let currentProfile = null;
-let selectedDays = 14;
-let joinChallengeId = null;
-let accessToken = null;
-
-function authHeaders() {
-  const h = { 'Content-Type': 'application/json', 'apikey': KEY, 'Prefer': 'return=representation' };
+function getHeaders() {
+  var h = {'Content-Type':'application/json','apikey':SKEY,'Prefer':'return=representation'};
   if (accessToken) h['Authorization'] = 'Bearer ' + accessToken;
   return h;
 }
 
-async function dbGet(table, filters) {
-  filters = filters || '';
-  const r = await fetch(URL + '/rest/v1/' + table + '?' + filters, { headers: authHeaders() });
-  return r.json();
+function dbGet(table, filters) {
+  return fetch(SURL + '/rest/v1/' + table + '?' + (filters||''), {headers: getHeaders()}).then(function(r){ return r.json(); });
 }
 
-async function dbGetOne(table, filters) {
-  const data = await dbGet(table, filters);
-  return Array.isArray(data) ? data[0] : data;
+function dbGetOne(table, filters) {
+  return dbGet(table, filters).then(function(d){ return Array.isArray(d) ? d[0] : d; });
 }
 
-async function dbInsert(table, body) {
-  const r = await fetch(URL + '/rest/v1/' + table, {
-    method: 'POST', headers: authHeaders(), body: JSON.stringify(body)
+function dbInsert(table, body) {
+  return fetch(SURL + '/rest/v1/' + table, {method:'POST', headers: getHeaders(), body: JSON.stringify(body)}).then(function(r){
+    if (!r.ok) return r.json().then(function(e){ throw new Error(e.message||'Error'); });
+    return r.text().then(function(t){ return t ? JSON.parse(t) : {}; });
   });
-  if (!r.ok) { const e = await r.json(); throw new Error(e.message || 'Insert error'); }
-  const text = await r.text();
-  return text ? JSON.parse(text) : {};
 }
 
-async function dbUpsert(table, body) {
-  const h = Object.assign({}, authHeaders(), {'Prefer': 'resolution=merge-duplicates,return=representation'});
-  const r = await fetch(URL + '/rest/v1/' + table, {
-    method: 'POST', headers: h, body: JSON.stringify(body)
+function dbUpsert(table, body) {
+  var h = {'Content-Type':'application/json','apikey':SKEY,'Prefer':'resolution=merge-duplicates,return=representation'};
+  if (accessToken) h['Authorization'] = 'Bearer ' + accessToken;
+  return fetch(SURL + '/rest/v1/' + table, {method:'POST', headers: h, body: JSON.stringify(body)}).then(function(r){
+    return r.text().then(function(t){ return t ? JSON.parse(t) : {}; });
   });
-  const text = await r.text();
-  return text ? JSON.parse(text) : {};
 }
 
-async function dbCount(table, filters) {
-  filters = filters || '';
-  const h = Object.assign({}, authHeaders(), {'Prefer': 'count=exact'});
-  const r = await fetch(URL + '/rest/v1/' + table + '?' + filters, { method: 'HEAD', headers: h });
-  const cr = r.headers.get('content-range');
-  return parseInt((cr && cr.split('/')[1]) || '0');
-}
-
-async function authSignUp(email, password) {
-  const r = await fetch(URL + '/auth/v1/signup', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'apikey': KEY },
-    body: JSON.stringify({ email: email, password: password })
+function dbCount(table, filters) {
+  var h = {'Content-Type':'application/json','apikey':SKEY,'Prefer':'count=exact'};
+  if (accessToken) h['Authorization'] = 'Bearer ' + accessToken;
+  return fetch(SURL + '/rest/v1/' + table + '?' + (filters||''), {method:'HEAD', headers: h}).then(function(r){
+    var cr = r.headers.get('content-range');
+    return parseInt((cr && cr.split('/')[1]) || '0');
   });
-  return r.json();
 }
 
-async function authSignIn(email, password) {
-  const r = await fetch(URL + '/auth/v1/token?grant_type=password', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'apikey': KEY },
-    body: JSON.stringify({ email: email, password: password })
-  });
-  return r.json();
+function apiSignUp(email, password) {
+  return fetch(SURL + '/auth/v1/signup', {method:'POST', headers:{'Content-Type':'application/json','apikey':SKEY}, body: JSON.stringify({email:email, password:password})}).then(function(r){ return r.json(); });
 }
 
-async function init() {
+function apiSignIn(email, password) {
+  return fetch(SURL + '/auth/v1/token?grant_type=password', {method:'POST', headers:{'Content-Type':'application/json','apikey':SKEY}, body: JSON.stringify({email:email, password:password})}).then(function(r){ return r.json(); });
+}
+
+function showEl(id) { var e = document.getElementById(id); if(e) e.classList.remove('hidden'); }
+function hideEl(id) { var e = document.getElementById(id); if(e) e.classList.add('hidden'); }
+function toggleEl(id, v) { v ? showEl(id) : hideEl(id); }
+function getVal(id) { var e = document.getElementById(id); return e ? (e.value||'').trim() : ''; }
+
+function showToast(msg) {
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(function(){ el.classList.remove('show'); }, 2500);
+}
+
+function showAuthError(msg) {
+  var el = document.getElementById('auth-error');
+  el.textContent = msg;
+  showEl('auth-error');
+  hideEl('auth-success');
+}
+
+function switchTab(tab) {
+  var tabs = document.querySelectorAll('.auth-tab');
+  tabs[0].classList.toggle('active', tab==='login');
+  tabs[1].classList.toggle('active', tab==='register');
+  toggleEl('login-form', tab==='login');
+  toggleEl('register-form', tab==='register');
+  hideEl('auth-error');
+}
+
+function init() {
   try {
-    const params = new URLSearchParams(window.location.search);
+    var params = new URLSearchParams(window.location.search);
     joinChallengeId = params.get('join');
-    let session = null;
-    try { session = JSON.parse(localStorage.getItem('spor_session')); } catch(e) {}
+    var session = null;
+    try { session = JSON.parse(localStorage.getItem('spor_session') || 'null'); } catch(e) {}
 
     if (session && session.access_token) {
       accessToken = session.access_token;
       currentUser = session.user;
-      try { await loadProfile(); } catch(e) {}
-      hide('loading');
-      if (joinChallengeId) { await showJoinScreen(); return; }
-      showApp();
+      hideEl('loading');
+      loadProfile().then(function() {
+        if (joinChallengeId) { showJoinScreen(); return; }
+        showApp();
+      }).catch(function() {
+        if (joinChallengeId) { showJoinScreen(); return; }
+        showApp();
+      });
     } else {
-      hide('loading');
-      if (joinChallengeId) { await showJoinScreen(); return; }
-      show('auth-screen');
+      hideEl('loading');
+      if (joinChallengeId) { showJoinScreen(); return; }
+      showEl('auth-screen');
     }
   } catch(e) {
-    hide('loading');
-    show('auth-screen');
+    hideEl('loading');
+    showEl('auth-screen');
   }
 }
 
-async function loadProfile() {
-  try {
-    const data = await dbGetOne('profiles', 'id=eq.' + currentUser.id);
+function loadProfile() {
+  return dbGetOne('profiles', 'id=eq.' + currentUser.id).then(function(data) {
     currentProfile = data;
     if (currentProfile) document.getElementById('nav-username').textContent = currentProfile.name;
-  } catch(e) {}
+  }).catch(function(){});
 }
 
-function switchTab(tab) {
-  document.querySelectorAll('.auth-tab').forEach(function(t, i) {
-    t.classList.toggle('active', (tab==='login'&&i===0)||(tab==='register'&&i===1));
-  });
-  toggle('login-form', tab==='login');
-  toggle('register-form', tab==='register');
-  hide('auth-error'); hide('auth-success');
-}
-
-async function login() {
-  const email = val('login-email'), password = val('login-password');
+function login() {
+  var email = getVal('login-email');
+  var password = getVal('login-password');
   if (!email || !password) return showAuthError('Заполни все поля');
-  const btn = event.target;
+  var btn = document.querySelector('#login-form .btn');
   btn.disabled = true; btn.textContent = '...';
-  const data = await authSignIn(email, password);
-  btn.disabled = false; btn.textContent = 'Войти →';
-  if (!data.access_token) return showAuthError('Неверный email или пароль');
-  accessToken = data.access_token;
-  currentUser = data.user;
-  localStorage.setItem('spor_session', JSON.stringify(data));
-  await loadProfile();
-  if (joinChallengeId) { await showJoinScreen(); return; }
-  hide('auth-screen'); showApp();
+
+  apiSignIn(email, password).then(function(data) {
+    btn.disabled = false; btn.textContent = 'Войти →';
+    if (!data.access_token) return showAuthError('Неверный email или пароль');
+    accessToken = data.access_token;
+    currentUser = data.user;
+    localStorage.setItem('spor_session', JSON.stringify(data));
+    return loadProfile().then(function() {
+      if (joinChallengeId) { showJoinScreen(); return; }
+      hideEl('auth-screen'); showApp();
+    });
+  }).catch(function() {
+    btn.disabled = false; btn.textContent = 'Войти →';
+    showAuthError('Ошибка соединения');
+  });
 }
 
-async function register() {
-  const name = val('reg-name'), email = val('reg-email'), password = val('reg-password');
+function register() {
+  var name = getVal('reg-name');
+  var email = getVal('reg-email');
+  var password = getVal('reg-password');
   if (!name || !email || !password) return showAuthError('Заполни все поля');
   if (password.length < 6) return showAuthError('Пароль минимум 6 символов');
-  const btn = event.target;
+  var btn = document.querySelector('#register-form .btn');
   btn.disabled = true; btn.textContent = '...';
-  const up = await authSignUp(email, password);
-  if (up.error) { btn.disabled=false; btn.textContent='Создать аккаунт →'; return showAuthError(up.error.message||up.msg||'Ошибка'); }
-  const session = await authSignIn(email, password);
-  btn.disabled = false; btn.textContent = 'Создать аккаунт →';
-  if (!session.access_token) return showAuthError('Ошибка входа после регистрации');
-  accessToken = session.access_token;
-  currentUser = session.user;
-  localStorage.setItem('spor_session', JSON.stringify(session));
-  try { await dbUpsert('profiles', { id: currentUser.id, name: name, email: email }); } catch(e) {}
-  await loadProfile();
-  if (joinChallengeId) { await showJoinScreen(); return; }
-  hide('auth-screen'); showApp();
+
+  apiSignUp(email, password).then(function(up) {
+    if (up.error) {
+      btn.disabled = false; btn.textContent = 'Создать аккаунт →';
+      return showAuthError(up.error.message || 'Ошибка регистрации');
+    }
+    return apiSignIn(email, password).then(function(session) {
+      btn.disabled = false; btn.textContent = 'Создать аккаунт →';
+      if (!session.access_token) return showAuthError('Ошибка входа');
+      accessToken = session.access_token;
+      currentUser = session.user;
+      localStorage.setItem('spor_session', JSON.stringify(session));
+      return dbUpsert('profiles', {id: currentUser.id, name: name, email: email}).then(function() {
+        return loadProfile();
+      }).then(function() {
+        if (joinChallengeId) { showJoinScreen(); return; }
+        hideEl('auth-screen'); showApp();
+      });
+    });
+  }).catch(function() {
+    btn.disabled = false; btn.textContent = 'Создать аккаунт →';
+    showAuthError('Ошибка соединения');
+  });
 }
 
-async function logout() {
+function logout() {
   localStorage.removeItem('spor_session');
   accessToken = null; currentUser = null; currentProfile = null;
-  hide('app'); show('auth-screen');
+  hideEl('app'); showEl('auth-screen');
 }
 
-function showAuthError(msg) {
-  const el = document.getElementById('auth-error');
-  el.textContent = msg; show('auth-error'); hide('auth-success');
+function showJoinScreen() {
+  hideEl('auth-screen'); hideEl('app'); showEl('join-screen');
+  dbGetOne('challenges', 'id=eq.' + joinChallengeId + '&select=*,profiles(name)').then(function(ch) {
+    if (!ch) { document.getElementById('join-challenge-title').textContent = 'Не найдено'; return; }
+    document.getElementById('join-challenge-title').textContent = ch.title;
+    document.getElementById('join-challenge-desc').textContent = ch.description || '';
+    document.getElementById('join-meta').innerHTML = '<div class="meta-row" style="justify-content:center"><div class="meta-chip">📅 ' + ch.duration_days + ' дней</div>' + (ch.stake ? '<div class="meta-chip stake">💸 ' + ch.stake + ' ₽</div>' : '') + '</div>';
+    if (!currentUser) {
+      var btn = document.getElementById('join-btn');
+      btn.textContent = 'Войти и принять вызов →';
+      btn.onclick = function() { hideEl('join-screen'); showEl('auth-screen'); };
+    }
+  });
 }
 
-async function showJoinScreen() {
-  hide('auth-screen'); hide('app'); show('join-screen');
-  const ch = await dbGetOne('challenges', 'id=eq.' + joinChallengeId + '&select=*,profiles(name)');
-  if (!ch) { document.getElementById('join-challenge-title').textContent = 'Челлендж не найден'; return; }
-  document.getElementById('join-challenge-title').textContent = ch.title;
-  document.getElementById('join-challenge-desc').textContent = ch.description || '';
-  document.getElementById('join-meta').innerHTML = '<div class="meta-row" style="justify-content:center"><div class="meta-chip">📅 ' + ch.duration_days + ' дней</div>' + (ch.stake ? '<div class="meta-chip stake">💸 ' + ch.stake + ' ₽</div>' : '') + '</div>';
-  if (!currentUser) {
-    document.getElementById('join-btn').textContent = 'Войти и принять вызов →';
-    document.getElementById('join-btn').onclick = function() { hide('join-screen'); show('auth-screen'); };
-  }
+function joinChallenge() {
+  if (!currentUser) { hideEl('join-screen'); showEl('auth-screen'); return; }
+  dbGetOne('participants', 'challenge_id=eq.' + joinChallengeId + '&user_id=eq.' + currentUser.id).then(function(existing) {
+    var p = existing ? Promise.resolve() : dbInsert('participants', {challenge_id: joinChallengeId, user_id: currentUser.id});
+    return p;
+  }).then(function() {
+    history.replaceState({}, '', window.location.pathname);
+    hideEl('join-screen'); showApp(); showScreen('home'); showToast('🎉 Ты в игре!');
+  }).catch(function() { showToast('Ошибка — попробуй ещё раз'); });
 }
 
-async function joinChallenge() {
-  if (!currentUser) { hide('join-screen'); show('auth-screen'); return; }
-  const existing = await dbGetOne('participants', 'challenge_id=eq.' + joinChallengeId + '&user_id=eq.' + currentUser.id);
-  if (!existing) {
-    try { await dbInsert('participants', { challenge_id: joinChallengeId, user_id: currentUser.id }); } catch(e) {}
-  }
-  history.replaceState({}, '', window.location.pathname);
-  hide('join-screen'); showApp(); showScreen('home'); toast('🎉 Ты в игре! Удачи!');
-}
-
-function showApp() { show('app'); showScreen('home'); }
+function showApp() { showEl('app'); showScreen('home'); }
 
 function showScreen(name) {
-  ['home','explore','create','detail','profile'].forEach(function(s) { hide('screen-'+s); });
-  show('screen-'+name);
-  document.querySelectorAll('.nav-item').forEach(function(el) { el.classList.remove('active'); });
-  const navEl = document.getElementById('nav-'+name);
-  if (navEl) navEl.classList.add('active');
+  ['home','explore','create','detail','profile'].forEach(function(s){ hideEl('screen-'+s); });
+  showEl('screen-'+name);
+  document.querySelectorAll('.nav-item').forEach(function(el){ el.classList.remove('active'); });
+  var nav = document.getElementById('nav-'+name);
+  if (nav) nav.classList.add('active');
   if (name==='home') loadHome();
   else if (name==='explore') loadExplore();
   else if (name==='profile') loadProfileScreen();
 }
 
-async function loadHome() {
-  const el = document.getElementById('home-list');
+function loadHome() {
+  var el = document.getElementById('home-list');
   el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">Загружаем...</div>';
-  const parts = await dbGet('participants', 'user_id=eq.' + currentUser.id + '&select=*,challenges(*)');
-  if (!parts || !parts.length) {
-    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🎯</div><div class="empty-title">Нет активных челленджей</div><div class="empty-desc">Создай первый вызов или присоединись к чужому</div></div>';
-    return;
-  }
-  const cards = [];
-  for (let i = 0; i < parts.length; i++) {
-    const p = parts[i];
-    const ch = p.challenges;
-    const count = await dbCount('checkins', 'challenge_id=eq.' + ch.id + '&user_id=eq.' + currentUser.id);
-    const pct = Math.round((count / ch.duration_days) * 100);
-    const isCreator = ch.creator_id === currentUser.id;
-    cards.push('<div class="challenge-card" onclick="showDetail('' + ch.id + '')">' +
-      '<div class="ch-card-header"><div class="ch-card-title">' + ch.title + '</div>' +
-      '<div class="ch-card-status ' + (isCreator?'status-my':'status-active') + '">' + (isCreator?'МОЙ':'УЧАСТВУЮ') + '</div></div>' +
-      (ch.description ? '<div class="ch-card-desc">' + ch.description.slice(0,80) + (ch.description.length>80?'…':'') + '</div>' : '') +
-      '<div class="progress-wrap"><div class="progress-bar"><div class="progress-fill" style="width:' + pct + '%"></div></div>' +
-      '<div class="progress-label"><span>' + count + ' из ' + ch.duration_days + ' дней</span><span>' + pct + '%</span></div></div>' +
-      '<div class="ch-card-meta"><span>📅 ' + ch.duration_days + ' дн.</span>' + (ch.stake?'<span>💸 ' + ch.stake + ' ₽</span>':'') + '</div></div>');
-  }
-  el.innerHTML = cards.join('');
+  dbGet('participants', 'user_id=eq.' + currentUser.id + '&select=*,challenges(*)').then(function(parts) {
+    if (!parts || !parts.length) {
+      el.innerHTML = '<div class="empty-state"><div class="empty-icon">🎯</div><div class="empty-title">Нет челленджей</div><div class="empty-desc">Создай первый вызов или присоединись к чужому</div></div>';
+      return;
+    }
+    var promises = parts.map(function(p) {
+      var ch = p.challenges;
+      return dbCount('checkins', 'challenge_id=eq.' + ch.id + '&user_id=eq.' + currentUser.id).then(function(count) {
+        var pct = Math.round((count / ch.duration_days) * 100);
+        var isMine = ch.creator_id === currentUser.id;
+        return '<div class="challenge-card" onclick="showDetail(\'' + ch.id + '\')">' +
+          '<div class="ch-card-header"><div class="ch-card-title">' + ch.title + '</div>' +
+          '<div class="ch-card-status ' + (isMine?'status-my':'status-active') + '">' + (isMine?'МОЙ':'УЧАСТВУЮ') + '</div></div>' +
+          (ch.description ? '<div class="ch-card-desc">' + ch.description.slice(0,80) + '</div>' : '') +
+          '<div class="progress-wrap"><div class="progress-bar"><div class="progress-fill" style="width:' + pct + '%"></div></div>' +
+          '<div class="progress-label"><span>' + count + ' из ' + ch.duration_days + ' дней</span><span>' + pct + '%</span></div></div>' +
+          '<div class="ch-card-meta"><span>📅 ' + ch.duration_days + ' дн.</span>' + (ch.stake ? '<span>💸 ' + ch.stake + ' ₽</span>' : '') + '</div></div>';
+      });
+    });
+    Promise.all(promises).then(function(cards){ el.innerHTML = cards.join(''); });
+  });
 }
 
-async function loadExplore() {
-  const el = document.getElementById('explore-list');
+function loadExplore() {
+  var el = document.getElementById('explore-list');
   el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">Загружаем...</div>';
-  const challenges = await dbGet('challenges', 'select=*,profiles(name)&order=created_at.desc&limit=30');
-  if (!challenges || !challenges.length) {
-    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">Пока пусто</div><div class="empty-desc">Стань первым — создай челлендж!</div></div>';
-    return;
-  }
-  const cards = [];
-  for (let i = 0; i < challenges.length; i++) {
-    const ch = challenges[i];
-    const count = await dbCount('participants', 'challenge_id=eq.' + ch.id);
-    cards.push('<div class="challenge-card" onclick="showDetail('' + ch.id + '')">' +
-      '<div class="ch-card-header"><div class="ch-card-title">' + ch.title + '</div><div class="ch-card-status status-active">ОТКРЫТ</div></div>' +
-      (ch.description ? '<div class="ch-card-desc">' + ch.description.slice(0,80) + (ch.description.length>80?'…':'') + '</div>' : '') +
-      '<div class="ch-card-meta"><span>📅 ' + ch.duration_days + ' дн.</span><span>👥 ' + count + ' участн.</span>' +
-      (ch.stake?'<span>💸 ' + ch.stake + ' ₽</span>':'') + '<span>👤 ' + ((ch.profiles&&ch.profiles.name)||'Аноним') + '</span></div></div>');
-  }
-  el.innerHTML = cards.join('');
+  dbGet('challenges', 'select=*,profiles(name)&order=created_at.desc&limit=30').then(function(list) {
+    if (!list || !list.length) {
+      el.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">Пусто</div><div class="empty-desc">Создай первый челлендж!</div></div>';
+      return;
+    }
+    var promises = list.map(function(ch) {
+      return dbCount('participants', 'challenge_id=eq.' + ch.id).then(function(count) {
+        return '<div class="challenge-card" onclick="showDetail(\'' + ch.id + '\')">' +
+          '<div class="ch-card-header"><div class="ch-card-title">' + ch.title + '</div><div class="ch-card-status status-active">ОТКРЫТ</div></div>' +
+          (ch.description ? '<div class="ch-card-desc">' + ch.description.slice(0,80) + '</div>' : '') +
+          '<div class="ch-card-meta"><span>📅 ' + ch.duration_days + ' дн.</span><span>👥 ' + count + ' участн.</span>' +
+          (ch.stake ? '<span>💸 ' + ch.stake + ' ₽</span>' : '') + '<span>👤 ' + ((ch.profiles&&ch.profiles.name)||'Аноним') + '</span></div></div>';
+      });
+    });
+    Promise.all(promises).then(function(cards){ el.innerHTML = cards.join(''); });
+  });
 }
 
-async function showDetail(id) {
+function showDetail(id) {
   showScreen('detail');
-  const el = document.getElementById('screen-detail');
+  var el = document.getElementById('screen-detail');
   el.innerHTML = '<div style="text-align:center;padding:60px;color:var(--muted)">Загружаем...</div>';
-  const ch = await dbGetOne('challenges', 'id=eq.' + id + '&select=*,profiles(name)');
-  const parts = await dbGet('participants', 'challenge_id=eq.' + id + '&select=*,profiles(name,id)');
-  const myCheckins = await dbGet('checkins', 'challenge_id=eq.' + id + '&user_id=eq.' + currentUser.id + '&select=date');
-  const checkedDates = {};
-  (myCheckins||[]).forEach(function(c) { checkedDates[c.date] = true; });
-  const today = new Date().toISOString().split('T')[0];
-  const checkedToday = !!checkedDates[today];
-  const isParticipant = (parts||[]).some(function(p) { return p.user_id === currentUser.id; });
-  const shareUrl = window.location.origin + window.location.pathname + '?join=' + id;
-  const colors = ['#e8ff47','#ff8c69','#69d5ff','#c469ff','#69ffb4'];
-  const pRows = [];
-  for (let i = 0; i < (parts||[]).length; i++) {
-    const p = parts[i];
-    const count = await dbCount('checkins', 'challenge_id=eq.' + id + '&user_id=eq.' + p.user_id);
-    const color = colors[i % colors.length];
-    const initials = ((p.profiles&&p.profiles.name)||'А').slice(0,2).toUpperCase();
-    const isMe = p.user_id === currentUser.id;
-    pRows.push('<div class="participant-row"><div class="participant-avatar" style="background:' + color + '">' + initials + '</div>' +
-      '<div class="participant-name">' + ((p.profiles&&p.profiles.name)||'Участник') + (isMe?' (ты)':'') + '</div>' +
-      '<div class="participant-streak"><span class="streak-fire">🔥</span>' + count + ' дней</div></div>');
-  }
-  el.innerHTML = '<div class="detail-header">' +
-    '<button class="back-btn" onclick="showScreen('home')">← Назад</button>' +
-    '<div class="detail-title">' + ch.title + '</div>' +
-    (ch.description ? '<div class="detail-desc">' + ch.description + '</div>' : '') +
-    '<div class="meta-row"><div class="meta-chip">📅 ' + ch.duration_days + ' дней</div>' +
-    (ch.stake ? '<div class="meta-chip stake">💸 ' + ch.stake + ' ₽ ставка</div>' : '') +
-    '<div class="meta-chip">👤 ' + ((ch.profiles&&ch.profiles.name)||'Аноним') + '</div></div></div>' +
-    (isParticipant ?
-      '<div class="checkin-section"><div class="checkin-title">Выполнение за сегодня</div>' +
-      '<div class="checkin-sub">' + (checkedToday?'Ты уже отметился сегодня 💪':'Сделал задание? Отметь!') + '</div>' +
-      (checkedToday ? '<div class="checkin-done">✅ Отмечено на сегодня!</div>' :
-        '<button class="btn btn-accent" onclick="doCheckin('' + id + '')">✅ Отметить выполнение</button>') + '</div>' :
-      '<div style="margin-bottom:16px"><button class="btn btn-accent" onclick="joinFromDetail('' + id + '')">Принять вызов →</button></div>') +
-    '<div style="margin-bottom:16px"><div class="section-label">Пригласить участников</div>' +
-    '<div class="share-box"><div class="share-url">' + shareUrl + '</div>' +
-    '<button class="share-copy" onclick="copyLink('' + shareUrl + '')">Копировать</button></div></div>' +
-    '<div class="participants-section"><div class="section-label">Участники (' + (parts||[]).length + ')</div>' +
-    (pRows.join('')||'<div style="color:var(--muted);font-size:13px">Пока никого</div>') + '</div>';
+  var colors = ['#e8ff47','#ff8c69','#69d5ff','#c469ff','#69ffb4'];
+  var chData, partsData;
+
+  Promise.all([
+    dbGetOne('challenges', 'id=eq.' + id + '&select=*,profiles(name)'),
+    dbGet('participants', 'challenge_id=eq.' + id + '&select=*,profiles(name,id)'),
+    dbGet('checkins', 'challenge_id=eq.' + id + '&user_id=eq.' + currentUser.id + '&select=date')
+  ]).then(function(results) {
+    var ch = results[0];
+    var parts = results[1] || [];
+    var myCheckins = results[2] || [];
+    var checkedDates = {};
+    myCheckins.forEach(function(c){ checkedDates[c.date] = true; });
+    var today = new Date().toISOString().split('T')[0];
+    var checkedToday = !!checkedDates[today];
+    var isParticipant = parts.some(function(p){ return p.user_id === currentUser.id; });
+    var shareUrl = window.location.origin + window.location.pathname + '?join=' + id;
+
+    var pPromises = parts.map(function(p, i) {
+      return dbCount('checkins', 'challenge_id=eq.' + id + '&user_id=eq.' + p.user_id).then(function(count) {
+        var color = colors[i % colors.length];
+        var initials = ((p.profiles&&p.profiles.name)||'А').slice(0,2).toUpperCase();
+        var isMe = p.user_id === currentUser.id;
+        return '<div class="participant-row"><div class="participant-avatar" style="background:' + color + '">' + initials + '</div>' +
+          '<div class="participant-name">' + ((p.profiles&&p.profiles.name)||'Участник') + (isMe?' (ты)':'') + '</div>' +
+          '<div class="participant-streak"><span class="streak-fire">🔥</span>' + count + ' дней</div></div>';
+      });
+    });
+
+    return Promise.all(pPromises).then(function(pRows) {
+      var checkinBlock = isParticipant ?
+        '<div class="checkin-section"><div class="checkin-title">Выполнение за сегодня</div>' +
+        '<div class="checkin-sub">' + (checkedToday ? 'Ты уже отметился 💪' : 'Сделал задание? Отметь!') + '</div>' +
+        (checkedToday ? '<div class="checkin-done">✅ Отмечено!</div>' :
+          '<button class="btn btn-accent" onclick="doCheckin(\'' + id + '\')">✅ Отметить выполнение</button>') + '</div>' :
+        '<div style="margin-bottom:16px"><button class="btn btn-accent" onclick="joinFromDetail(\'' + id + '\')">Принять вызов →</button></div>';
+
+      el.innerHTML = '<div class="detail-header">' +
+        '<button class="back-btn" onclick="showScreen(\'home\')">← Назад</button>' +
+        '<div class="detail-title">' + ch.title + '</div>' +
+        (ch.description ? '<div class="detail-desc">' + ch.description + '</div>' : '') +
+        '<div class="meta-row"><div class="meta-chip">📅 ' + ch.duration_days + ' дней</div>' +
+        (ch.stake ? '<div class="meta-chip stake">💸 ' + ch.stake + ' ₽</div>' : '') + '</div></div>' +
+        checkinBlock +
+        '<div style="margin-bottom:16px"><div class="section-label">Пригласить</div>' +
+        '<div class="share-box"><div class="share-url">' + shareUrl + '</div>' +
+        '<button class="share-copy" onclick="copyLink(\'' + shareUrl + '\')">Копировать</button></div></div>' +
+        '<div class="participants-section"><div class="section-label">Участники (' + parts.length + ')</div>' +
+        (pRows.join('') || '<div style="color:var(--muted);font-size:13px">Пока никого</div>') + '</div>';
+    });
+  });
 }
 
-async function doCheckin(challengeId) {
-  const today = new Date().toISOString().split('T')[0];
-  try {
-    await dbInsert('checkins', { challenge_id: challengeId, user_id: currentUser.id, date: today });
-    toast('🔥 Отлично! День засчитан!');
+function doCheckin(challengeId) {
+  var today = new Date().toISOString().split('T')[0];
+  dbInsert('checkins', {challenge_id: challengeId, user_id: currentUser.id, date: today}).then(function() {
+    showToast('🔥 День засчитан!');
     showDetail(challengeId);
-  } catch(e) { toast('Ошибка — попробуй ещё раз'); }
+  }).catch(function(){ showToast('Ошибка — попробуй ещё раз'); });
 }
 
-async function joinFromDetail(id) {
-  const existing = await dbGetOne('participants', 'challenge_id=eq.' + id + '&user_id=eq.' + currentUser.id);
-  if (!existing) {
-    try { await dbInsert('participants', { challenge_id: id, user_id: currentUser.id }); } catch(e) {}
-  }
-  toast('🎉 Ты в игре!'); showDetail(id);
+function joinFromDetail(id) {
+  dbGetOne('participants', 'challenge_id=eq.' + id + '&user_id=eq.' + currentUser.id).then(function(existing) {
+    var p = existing ? Promise.resolve() : dbInsert('participants', {challenge_id: id, user_id: currentUser.id});
+    return p;
+  }).then(function(){ showToast('🎉 Ты в игре!'); showDetail(id); }).catch(function(){});
 }
 
 function selectDays(n, btn) {
   selectedDays = n;
-  document.querySelectorAll('.day-btn').forEach(function(b) { b.classList.remove('selected'); });
+  document.querySelectorAll('.day-btn').forEach(function(b){ b.classList.remove('selected'); });
   btn.classList.add('selected');
 }
 
-async function createChallenge() {
-  const title = val('c-title'), desc = val('c-desc'), stake = parseInt(val('c-stake'))||0;
-  hide('create-error');
-  if (!title) { document.getElementById('create-error').textContent='Придумай название'; show('create-error'); return; }
-  const btn = event.target;
+function createChallenge() {
+  var title = getVal('c-title');
+  var desc = getVal('c-desc');
+  var stake = parseInt(getVal('c-stake')) || 0;
+  hideEl('create-error');
+  if (!title) {
+    var er = document.getElementById('create-error');
+    er.textContent = 'Придумай название'; showEl('create-error'); return;
+  }
+  var btn = document.querySelector('#screen-create .btn-accent');
   btn.disabled = true; btn.textContent = '...';
-  try {
-    const result = await dbInsert('challenges', { title: title, description: desc, duration_days: selectedDays, stake: stake, creator_id: currentUser.id });
-    const ch = Array.isArray(result) ? result[0] : result;
-    await dbInsert('participants', { challenge_id: ch.id, user_id: currentUser.id });
+
+  dbInsert('challenges', {title: title, description: desc, duration_days: selectedDays, stake: stake, creator_id: currentUser.id}).then(function(result) {
+    var ch = Array.isArray(result) ? result[0] : result;
+    return dbInsert('participants', {challenge_id: ch.id, user_id: currentUser.id}).then(function() { return ch; });
+  }).then(function(ch) {
     document.getElementById('c-title').value = '';
     document.getElementById('c-desc').value = '';
     document.getElementById('c-stake').value = '';
     btn.disabled = false; btn.textContent = 'Создать вызов →';
-    toast('🎯 Челлендж создан!');
+    showToast('🎯 Челлендж создан!');
     showDetail(ch.id);
-  } catch(e) {
+  }).catch(function(e) {
     btn.disabled = false; btn.textContent = 'Создать вызов →';
-    document.getElementById('create-error').textContent = 'Ошибка: ' + e.message;
-    show('create-error');
-  }
+    var er = document.getElementById('create-error');
+    er.textContent = 'Ошибка: ' + e.message; showEl('create-error');
+  });
 }
 
-async function loadProfileScreen() {
-  const el = document.getElementById('screen-profile');
+function loadProfileScreen() {
+  var el = document.getElementById('screen-profile');
   el.innerHTML = '<div style="text-align:center;padding:60px;color:var(--muted)">Загружаем...</div>';
-  const partsCount = await dbCount('participants', 'user_id=eq.' + currentUser.id);
-  const createdCount = await dbCount('challenges', 'creator_id=eq.' + currentUser.id);
-  const checkinsCount = await dbCount('checkins', 'user_id=eq.' + currentUser.id);
-  const initials = ((currentProfile&&currentProfile.name)||'А').slice(0,2).toUpperCase();
-  el.innerHTML = '<div class="profile-header"><div class="profile-avatar">' + initials + '</div>' +
-    '<div class="profile-name">' + ((currentProfile&&currentProfile.name)||'Пользователь') + '</div>' +
-    '<div class="profile-email">' + ((currentProfile&&currentProfile.email)||currentUser.email) + '</div></div>' +
-    '<div class="stats-grid">' +
-    '<div class="stat-box"><div class="stat-num accent">' + partsCount + '</div><div class="stat-label">Участвую</div></div>' +
-    '<div class="stat-box"><div class="stat-num accent">' + createdCount + '</div><div class="stat-label">Создал</div></div>' +
-    '<div class="stat-box"><div class="stat-num accent">' + checkinsCount + '</div><div class="stat-label">Отметок</div></div></div>' +
-    '<button class="btn btn-ghost" onclick="logout()">Выйти из аккаунта</button>';
+  Promise.all([
+    dbCount('participants', 'user_id=eq.' + currentUser.id),
+    dbCount('challenges', 'creator_id=eq.' + currentUser.id),
+    dbCount('checkins', 'user_id=eq.' + currentUser.id)
+  ]).then(function(counts) {
+    var initials = ((currentProfile&&currentProfile.name)||'А').slice(0,2).toUpperCase();
+    el.innerHTML = '<div class="profile-header"><div class="profile-avatar">' + initials + '</div>' +
+      '<div class="profile-name">' + ((currentProfile&&currentProfile.name)||'Пользователь') + '</div>' +
+      '<div class="profile-email">' + ((currentProfile&&currentProfile.email)||currentUser.email) + '</div></div>' +
+      '<div class="stats-grid">' +
+      '<div class="stat-box"><div class="stat-num accent">' + counts[0] + '</div><div class="stat-label">Участвую</div></div>' +
+      '<div class="stat-box"><div class="stat-num accent">' + counts[1] + '</div><div class="stat-label">Создал</div></div>' +
+      '<div class="stat-box"><div class="stat-num accent">' + counts[2] + '</div><div class="stat-label">Отметок</div></div></div>' +
+      '<button class="btn btn-ghost" onclick="logout()">Выйти из аккаунта</button>';
+  });
 }
 
-function copyLink(url) { navigator.clipboard.writeText(url).then(function() { toast('✅ Ссылка скопирована!'); }); }
-function toast(msg) {
-  const el = document.getElementById('toast');
-  el.textContent = msg; el.classList.add('show');
-  setTimeout(function() { el.classList.remove('show'); }, 2500);
+function copyLink(url) {
+  navigator.clipboard.writeText(url).then(function(){ showToast('✅ Ссылка скопирована!'); });
 }
-function val(id) { return (document.getElementById(id)&&document.getElementById(id).value&&document.getElementById(id).value.trim())||''; }
-function show(id) { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); }
-function hide(id) { const el=document.getElementById(id); if(el) el.classList.add('hidden'); }
-function toggle(id, v) { v ? show(id) : hide(id); }
 
 init();
 </script>
