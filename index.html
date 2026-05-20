@@ -662,7 +662,9 @@ function dbGetOne(table, filters) {
 }
 
 function dbInsert(table, body) {
-  return fetch(SURL + '/rest/v1/' + table, {method:'POST', headers: getHeaders(), body: JSON.stringify(body)}).then(function(r){
+  var h = {'Content-Type':'application/json','apikey':SKEY,'Prefer':'return=representation'};
+  if (accessToken) h['Authorization'] = 'Bearer ' + accessToken;
+  return fetch(SURL + '/rest/v1/' + table, {method:'POST', headers: h, body: JSON.stringify(body)}).then(function(r){
     if (!r.ok) return r.json().then(function(e){ throw new Error(e.message||'Error'); });
     return r.text().then(function(t){ return t ? JSON.parse(t) : {}; });
   });
