@@ -782,7 +782,10 @@ function login() {
     currentUser = data.user;
     localStorage.setItem('spor_session', JSON.stringify(data));
     return loadProfile().then(function() {
-      if (joinChallengeId) { showJoinScreen(); return; }
+      if (joinChallengeId) {
+        autoJoinAndGo();
+        return;
+      }
       hideEl('auth-screen'); showApp();
     });
   }).catch(function() {
@@ -814,7 +817,10 @@ function register() {
       return dbUpsert('profiles', {id: currentUser.id, name: name, email: email}).then(function() {
         return loadProfile();
       }).then(function() {
-        if (joinChallengeId) { showJoinScreen(); return; }
+        if (joinChallengeId) {
+          autoJoinAndGo();
+          return;
+        }
         hideEl('auth-screen'); showApp();
       });
     });
@@ -828,6 +834,25 @@ function logout() {
   localStorage.removeItem('spor_session');
   accessToken = null; currentUser = null; currentProfile = null;
   hideEl('app'); showAuthOnly();
+}
+
+function autoJoinAndGo() {
+  dbGetOne('participants', 'challenge_id=eq.' + joinChallengeId + '&user_id=eq.' + currentUser.id).then(function(existing) {
+    var p = existing ? Promise.resolve() : dbInsert('participants', {challenge_id: joinChallengeId, user_id: currentUser.id});
+    return p;
+  }).then(function() {
+    history.replaceState({}, '', window.location.pathname);
+    var cid = joinChallengeId;
+    joinChallengeId = null;
+    hideEl('auth-screen');
+    hideEl('join-screen');
+    showApp();
+    showToast('🎉 Ты в игре!');
+    showDetail(cid);
+  }).catch(function() {
+    hideEl('auth-screen');
+    showApp();
+  });
 }
 
 function showJoinScreen() {
