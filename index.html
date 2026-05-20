@@ -726,7 +726,9 @@ async function register() {
   if (error) return showAuthError(error.message);
   currentUser = data.user;
 
-  await sb.from('profiles').insert({ id: currentUser.id, name, email });
+  if (currentUser) {
+    await sb.from("profiles").upsert({ id: currentUser.id, name, email });
+  }
   await loadProfile();
 
   if (joinChallengeId) { await showJoinScreen(); return; }
