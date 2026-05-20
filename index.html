@@ -727,7 +727,12 @@ function switchTab(tab) {
   hideEl('auth-error');
 }
 
+function wakeSupabase() {
+  fetch(SURL + '/rest/v1/profiles?limit=1', {headers: {'apikey': SKEY}}).catch(function(){});
+}
+
 function init() {
+  wakeSupabase();
   try {
     var params = new URLSearchParams(window.location.search);
     joinChallengeId = params.get('join');
@@ -737,14 +742,12 @@ function init() {
     if (session && session.access_token) {
       accessToken = session.access_token;
       currentUser = session.user;
+      currentProfile = session.profile || null;
       hideEl('loading');
-      loadProfile().then(function() {
-        if (joinChallengeId) { showJoinScreen(); return; }
-        showApp();
-      }).catch(function() {
-        if (joinChallengeId) { showJoinScreen(); return; }
-        showApp();
-      });
+      if (currentProfile) document.getElementById('nav-username').textContent = currentProfile.name;
+      if (joinChallengeId) { showJoinScreen(); return; }
+      showApp();
+      loadProfile();
     } else {
       hideEl('loading');
       if (joinChallengeId) { showJoinScreen(); return; }
