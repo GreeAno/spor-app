@@ -964,12 +964,17 @@ function showDetail(id) {
     });
 
     return Promise.all(pPromises).then(function(pRows) {
+      var isCreator = (ch.creator_id === currentUser.id);
+
       var checkinBlock = isParticipant ?
         '<div class="checkin-section"><div class="checkin-title">Выполнение за сегодня</div>' +
         '<div class="checkin-sub">' + (checkedToday ? 'Ты уже отметился 💪' : 'Сделал задание? Отметь!') + '</div>' +
         (checkedToday ? '<div class="checkin-done">✅ Отмечено!</div>' :
           '<button class="btn btn-accent" onclick="doCheckin(\'' + id + '\')">✅ Отметить выполнение</button>') + '</div>' :
         '<div style="margin-bottom:16px"><button class="btn btn-accent" onclick="joinFromDetail(\'' + id + '\')">Принять вызов →</button></div>';
+
+      var deleteBlock = isCreator ?
+        '<div style="margin-top:8px"><button class="btn btn-danger" onclick="deleteChallenge(\'' + id + '\')">🗑 Удалить челлендж</button></div>' : '';
 
       el.innerHTML = '<div class="detail-header">' +
         '<button class="back-btn" onclick="showScreen(\'home\')">← Назад</button>' +
@@ -982,7 +987,8 @@ function showDetail(id) {
         '<div class="share-box"><div class="share-url">' + shareUrl + '</div>' +
         '<button class="share-copy" onclick="copyLink(\'' + shareUrl + '\')">Копировать</button></div></div>' +
         '<div class="participants-section"><div class="section-label">Участники (' + parts.length + ')</div>' +
-        (pRows.join('') || '<div style="color:var(--muted);font-size:13px">Пока никого</div>') + '</div>';
+        (pRows.join('') || '<div style="color:var(--muted);font-size:13px">Пока никого</div>') + '</div>' +
+        deleteBlock;
     });
   });
 }
