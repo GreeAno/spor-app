@@ -1037,21 +1037,28 @@ function createChallenge() {
 
 function loadProfileScreen() {
   var el = document.getElementById('screen-profile');
-  el.innerHTML = '<div style="text-align:center;padding:60px;color:var(--muted)">Загружаем...</div>';
+  var initials = ((currentProfile&&currentProfile.name)||'А').slice(0,2).toUpperCase();
+  // Show profile info immediately from cache, load stats in background
+  el.innerHTML = '<div class="profile-header"><div class="profile-avatar">' + initials + '</div>' +
+    '<div class="profile-name">' + ((currentProfile&&currentProfile.name)||'Пользователь') + '</div>' +
+    '<div class="profile-email">' + ((currentProfile&&currentProfile.email)||currentUser.email) + '</div></div>' +
+    '<div class="stats-grid">' +
+    '<div class="stat-box"><div class="stat-num accent" id="stat-parts">—</div><div class="stat-label">Участвую</div></div>' +
+    '<div class="stat-box"><div class="stat-num accent" id="stat-created">—</div><div class="stat-label">Создал</div></div>' +
+    '<div class="stat-box"><div class="stat-num accent" id="stat-checkins">—</div><div class="stat-label">Отметок</div></div></div>' +
+    '<button class="btn btn-ghost" onclick="logout()">Выйти из аккаунта</button>';
+  // Load all stats in one parallel batch
   Promise.all([
-    dbCount('participants', 'user_id=eq.' + currentUser.id),
-    dbCount('challenges', 'creator_id=eq.' + currentUser.id),
-    dbCount('checkins', 'user_id=eq.' + currentUser.id)
-  ]).then(function(counts) {
-    var initials = ((currentProfile&&currentProfile.name)||'А').slice(0,2).toUpperCase();
-    el.innerHTML = '<div class="profile-header"><div class="profile-avatar">' + initials + '</div>' +
-      '<div class="profile-name">' + ((currentProfile&&currentProfile.name)||'Пользователь') + '</div>' +
-      '<div class="profile-email">' + ((currentProfile&&currentProfile.email)||currentUser.email) + '</div></div>' +
-      '<div class="stats-grid">' +
-      '<div class="stat-box"><div class="stat-num accent">' + counts[0] + '</div><div class="stat-label">Участвую</div></div>' +
-      '<div class="stat-box"><div class="stat-num accent">' + counts[1] + '</div><div class="stat-label">Создал</div></div>' +
-      '<div class="stat-box"><div class="stat-num accent">' + counts[2] + '</div><div class="stat-label">Отметок</div></div></div>' +
-      '<button class="btn btn-ghost" onclick="logout()">Выйти из аккаунта</button>';
+    dbGet('participants', 'user_id=eq.' + currentUser.id + '&select=challenge_id'),
+    dbGet('challenges', 'creator_id=eq.' + currentUser.id + '&select=id'),
+    dbGet('checkins', 'user_id=eq.' + currentUser.id + '&select=id')
+  ]).then(function(results) {
+    var p = document.getElementById('stat-parts');
+    var c = document.getElementById('stat-created');
+    var ch = document.getElementById('stat-checkins');
+    if (p) p.textContent = (results[0]||[]).length;
+    if (c) c.textContent = (results[1]||[]).length;
+    if (ch) ch.textContent = (results[2]||[]).length;
   });
 }
 
