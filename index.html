@@ -882,10 +882,11 @@ function joinChallenge() {
 }
 
 function showApp() {
+  hideEl('auth-screen');
+  hideEl('join-screen');
+  hideEl('loading');
   var app = document.getElementById('app');
-  app.style.display = 'block';
-  app.style.minHeight = '100vh';
-  app.style.paddingBottom = '80px';
+  app.style.cssText = 'display:block !important; min-height:100vh; padding-bottom:80px;';
   var saved = localStorage.getItem('spor_screen') || 'home';
   showScreen(saved);
 }
