@@ -1121,6 +1121,13 @@ function copyLink(url) {
 }
 
 init();
+
+// Пингуем Supabase каждые 4 минуты чтобы не засыпал
+setInterval(function() {
+  fetch(SURL + '/rest/v1/profiles?limit=1', {
+    headers: {'apikey': SKEY}
+  }).catch(function(){});
+}, 4 * 60 * 1000);
 </script>
 </body>
 </html>
