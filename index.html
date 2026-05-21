@@ -695,11 +695,7 @@ function getHeaders() {
 
 function dbGet(table, filters) {
   var url = SURL + '/rest/v1/' + table + '?' + (filters||'');
-  return fetch(url, {headers: getHeaders()}).then(function(r){ return r.json(); }).catch(function() {
-    return new Promise(function(resolve) { setTimeout(resolve, 1500); }).then(function() {
-      return fetch(url, {headers: getHeaders()}).then(function(r){ return r.json(); });
-    });
-  });
+  return fetch(url, {headers: getHeaders()}).then(function(r){ return r.json(); });
 }
 
 function dbGetOne(table, filters) {
@@ -1169,12 +1165,7 @@ function copyLink(url) {
 
 init();
 
-// Пингуем Supabase каждые 4 минуты чтобы не засыпал
-setInterval(function() {
-  fetch(SURL + '/rest/v1/profiles?limit=1', {
-    headers: {'apikey': SKEY}
-  }).catch(function(){});
-}, 4 * 60 * 1000);
+
 </script>
 </body>
 </html>
