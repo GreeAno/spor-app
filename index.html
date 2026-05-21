@@ -964,10 +964,11 @@ function loadHome() {
     }
     var promises = parts.map(function(p, i) {
       var ch = p.challenges;
+      var cardIndex = i;
       return dbCount('checkins', 'challenge_id=eq.' + ch.id + '&user_id=eq.' + currentUser.id).then(function(count) {
         var pct = Math.round((count / ch.duration_days) * 100);
         var isMine = ch.creator_id === currentUser.id;
-        var delay = i * 80;
+        var delay = cardIndex * 80;
         return '<div class="challenge-card card-animate" style="animation-delay:' + delay + 'ms" onclick="showDetail(\'' + ch.id + '\')">' +
           '<div class="ch-card-header"><div class="ch-card-title">' + ch.title + '</div>' +
           '<div class="ch-card-status ' + (isMine?'status-my':'status-active') + '">' + (isMine?'МОЙ':'УЧАСТВУЮ') + '</div></div>' +
