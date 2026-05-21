@@ -49,6 +49,50 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes shimmer {
+    0%   { background-position: -400px 0; }
+    100% { background-position: 400px 0; }
+  }
+
+  @keyframes scaleIn {
+    from { transform: scale(0.95); opacity: 0; }
+    to   { transform: scale(1); opacity: 1; }
+  }
+
+  @keyframes progressGrow {
+    from { width: 0%; }
+  }
+
+  .card-animate {
+    opacity: 0;
+    animation: fadeUp 0.4s ease forwards;
+  }
+
+  .skeleton {
+    background: linear-gradient(90deg, #1a1a1a 25%, #252525 50%, #1a1a1a 75%);
+    background-size: 400px 100%;
+    animation: shimmer 1.4s infinite;
+    border-radius: 8px;
+  }
+
+  .skeleton-card {
+    background: var(--gray);
+    border-radius: 16px;
+    padding: 18px;
+    border: 1px solid var(--border);
+    margin-bottom: 12px;
+  }
+
+  .skeleton-title  { height: 18px; width: 60%; margin-bottom: 12px; }
+  .skeleton-line   { height: 12px; width: 90%; margin-bottom: 8px; }
+  .skeleton-short  { height: 12px; width: 40%; margin-bottom: 16px; }
+  .skeleton-bar    { height: 3px;  width: 100%; margin-bottom: 8px; }
+
   /* AUTH */
   #auth-screen {
     min-height: 100vh;
@@ -225,11 +269,12 @@
     font-family: 'Onest', sans-serif;
   }
   .nav-item.active { color: var(--accent); }
+  .nav-item:active { transform: scale(0.88); }
   .nav-item svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .nav-label { font-size: 10px; font-weight: 500; }
 
   /* SCREENS */
-  .screen { padding: 20px; max-width: 480px; margin: 0 auto; }
+  .screen { padding: 20px; max-width: 480px; margin: 0 auto; animation: scaleIn 0.25s ease; }
 
   /* SECTION TITLE */
   .screen-title {
@@ -253,7 +298,7 @@
     position: relative;
     overflow: hidden;
   }
-  .challenge-card:hover { border-color: rgba(232,255,71,0.2); transform: translateY(-1px); }
+  .challenge-card:hover { border-color: rgba(232,255,71,0.25); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(232,255,71,0.1); }
   .challenge-card::before {
     content: '';
     position: absolute;
@@ -295,7 +340,7 @@
   /* PROGRESS BAR */
   .progress-wrap { margin: 10px 0; }
   .progress-bar { height: 3px; background: var(--border); border-radius: 100px; overflow: hidden; }
-  .progress-fill { height: 100%; background: var(--accent); border-radius: 100px; transition: width .5s ease; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 100px; animation: progressGrow 0.8s ease; transition: width .5s ease; }
   .progress-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 4px; }
 
   /* EMPTY STATE */
@@ -922,7 +967,8 @@ function loadHome() {
       return dbCount('checkins', 'challenge_id=eq.' + ch.id + '&user_id=eq.' + currentUser.id).then(function(count) {
         var pct = Math.round((count / ch.duration_days) * 100);
         var isMine = ch.creator_id === currentUser.id;
-        return '<div class="challenge-card" onclick="showDetail(\'' + ch.id + '\')">' +
+        var delay = i * 80;
+        return '<div class="challenge-card card-animate" style="animation-delay:' + delay + 'ms" onclick="showDetail(\'' + ch.id + '\')">' +
           '<div class="ch-card-header"><div class="ch-card-title">' + ch.title + '</div>' +
           '<div class="ch-card-status ' + (isMine?'status-my':'status-active') + '">' + (isMine?'МОЙ':'УЧАСТВУЮ') + '</div></div>' +
           (ch.description ? '<div class="ch-card-desc">' + ch.description.slice(0,80) + '</div>' : '') +
