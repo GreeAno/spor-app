@@ -770,12 +770,7 @@ function switchTab(tab) {
   hideEl('auth-error');
 }
 
-function wakeSupabase() {
-  fetch(SURL + '/rest/v1/profiles?limit=1', {headers: {'apikey': SKEY}}).catch(function(){});
-}
-
 function init() {
-  wakeSupabase();
   try {
     var params = new URLSearchParams(window.location.search);
     joinChallengeId = params.get('join');
@@ -1146,16 +1141,16 @@ function loadProfileScreen() {
     '<button class="btn btn-ghost" onclick="logout()">Выйти из аккаунта</button>';
   // Load all stats in one parallel batch
   Promise.all([
-    dbGet('participants', 'user_id=eq.' + currentUser.id + '&select=challenge_id'),
-    dbGet('challenges', 'creator_id=eq.' + currentUser.id + '&select=id'),
-    dbGet('checkins', 'user_id=eq.' + currentUser.id + '&select=id')
-  ]).then(function(results) {
+    dbCount('participants', 'user_id=eq.' + currentUser.id),
+    dbCount('challenges', 'creator_id=eq.' + currentUser.id),
+    dbCount('checkins', 'user_id=eq.' + currentUser.id)
+  ]).then(function(counts) {
     var p = document.getElementById('stat-parts');
     var c = document.getElementById('stat-created');
     var ch = document.getElementById('stat-checkins');
-    if (p) p.textContent = (results[0]||[]).length;
-    if (c) c.textContent = (results[1]||[]).length;
-    if (ch) ch.textContent = (results[2]||[]).length;
+    if (p) p.textContent = counts[0];
+    if (c) c.textContent = counts[1];
+    if (ch) ch.textContent = counts[2];
   });
 }
 
