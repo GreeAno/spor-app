@@ -962,7 +962,7 @@ function loadHome() {
       el.innerHTML = '<div class="empty-state"><div class="empty-icon">🎯</div><div class="empty-title">Нет челленджей</div><div class="empty-desc">Создай первый вызов или присоединись к чужому</div></div>';
       return;
     }
-    var promises = parts.map(function(p) {
+    var promises = parts.map(function(p, i) {
       var ch = p.challenges;
       return dbCount('checkins', 'challenge_id=eq.' + ch.id + '&user_id=eq.' + currentUser.id).then(function(count) {
         var pct = Math.round((count / ch.duration_days) * 100);
