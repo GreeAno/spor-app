@@ -1019,22 +1019,24 @@ function showDetail(id) {
     var shareUrl = window.location.origin + window.location.pathname + '?join=' + id;
 
     var pPromises = parts.map(function(p, i) {
-      return dbGet('checkins', 'challenge_id=eq.' + id + '&user_id=eq.' + p.user_id + '&select=date,photo_url&order=date.desc&limit=1').then(function(lastCheckins) {
-        var last = lastCheckins && lastCheckins[0];
-        var count = last ? 1 : 0;
-        return dbCount('checkins', 'challenge_id=eq.' + id + '&user_id=eq.' + p.user_id).then(function(count) {
-        var color = colors[i % colors.length];
-        var initials = ((p.profiles&&p.profiles.name)||'А').slice(0,2).toUpperCase();
-          var isMe = p.user_id === currentUser.id;
-          var photoHtml = (last && last.photo_url) ?
-            '<img src="' + last.photo_url + '" style="width:100%;border-radius:10px;margin-top:8px;max-height:160px;object-fit:cover;" onclick="window.open(\'' + last.photo_url + '\')">' : '';
-          return '<div class="participant-row" style="flex-direction:column;align-items:flex-start;">' +
-            '<div style="display:flex;align-items:center;gap:12px;width:100%">' +
-            '<div class="participant-avatar" style="background:' + color + '">' + initials + '</div>' +
-            '<div class="participant-name">' + ((p.profiles&&p.profiles.name)||'Участник') + (isMe?' (ты)':'') + '</div>' +
-            '<div class="participant-streak" style="margin-left:auto"><span class="streak-fire">🔥</span>' + count + ' дней</div>' +
-            '</div>' + photoHtml + '</div>';
-        });
+      var color = colors[i % colors.length];
+      var initials = ((p.profiles&&p.profiles.name)||'А').slice(0,2).toUpperCase();
+      var isMe = p.user_id === currentUser.id;
+      return Promise.all([
+        dbCount('checkins', 'challenge_id=eq.' + id + '&user_id=eq.' + p.user_id),
+        dbGet('checkins', 'challenge_id=eq.' + id + '&user_id=eq.' + p.user_id + '&select=date,photo_url&order=date.desc&limit=1')
+      ]).then(function(res) {
+        var count = res[0];
+        var lastCheckins = res[1] || [];
+        var last = lastCheckins[0];
+        var photoHtml = (last && last.photo_url) ?
+          '<img src="' + last.photo_url + '" style="width:100%;border-radius:10px;margin-top:8px;max-height:160px;object-fit:cover;cursor:pointer;" onclick="window.open(\'' + last.photo_url + '\')">' : '';
+        return '<div class="participant-row" style="flex-direction:column;align-items:flex-start;gap:8px;">' +
+          '<div style="display:flex;align-items:center;gap:12px;width:100%">' +
+          '<div class="participant-avatar" style="background:' + color + '">' + initials + '</div>' +
+          '<div class="participant-name">' + ((p.profiles&&p.profiles.name)||'Участник') + (isMe?' (ты)':'') + '</div>' +
+          '<div class="participant-streak" style="margin-left:auto"><span class="streak-fire">🔥</span>' + count + ' дней</div>' +
+          '</div>' + photoHtml + '</div>';
       });
     });
 
@@ -1048,7 +1050,7 @@ function showDetail(id) {
           '<div>' +
           '<input type="file" id="photo-input" accept="image/*" capture="environment" style="display:none" onchange="previewPhoto(this)">' +
           '<div id="photo-preview" style="display:none;margin-bottom:12px;border-radius:12px;overflow:hidden;"><img id="preview-img" style="width:100%;max-height:200px;object-fit:cover;border-radius:12px;" src=""></div>' +
-          '<button class="btn btn-ghost" style="margin-bottom:8px" onclick="document.getElementById('photo-input').click()">📷 Выбрать фото</button>' +
+          '<button class="btn btn-ghost" style="margin-bottom:8px" onclick="document.getElementById(&quot;photo-input&quot;).click()">📷 Выбрать фото</button>' +
           '<button class="btn btn-accent" id="checkin-btn" onclick="doCheckin(\'' + id + '\')" disabled style="opacity:0.4">✅ Отправить отчёт</button>' +
           '</div>') + '</div>' :
         '<div style="margin-bottom:16px"><button class="btn btn-accent" onclick="joinFromDetail(\'' + id + '\')">Принять вызов →</button></div>';
